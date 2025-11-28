@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { QUESTIONS } from "../../lib/questions";
 import type { AnswersMap } from "../../lib/types";
 import { calculateChannelScores } from "../../lib/scoring";
+
+const STORAGE_KEY = "lumos-prioritiser-state-v1";
 
 export default function AssessmentPage() {
   const [answers, setAnswers] = useState<AnswersMap>({});
@@ -13,6 +15,46 @@ export default function AssessmentPage() {
 
   const total = QUESTIONS.length;
   const question = QUESTIONS[step];
+
+  // Load saved state on first mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as {
+        answers?: AnswersMap;
+        step?: number;
+      };
+
+      if (parsed.answers) {
+        setAnswers(parsed.answers);
+      }
+      if (
+        typeof parsed.step === "number" &&
+        parsed.step >= 0 &&
+        parsed.step < QUESTIONS.length
+      ) {
+        setStep(parsed.step);
+      }
+    } catch (e) {
+      console.warn("Failed to load saved assessment state", e);
+    }
+  }, []);
+
+  // Persist state whenever answers or step change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const data = JSON.stringify({ answers, step });
+      window.localStorage.setItem(STORAGE_KEY, data);
+    } catch (e) {
+      console.warn("Failed to save assessment state", e);
+    }
+  }, [answers, step]);
 
   function handleSelect(optionId: string) {
     setAnswers((prev) => ({
@@ -36,7 +78,15 @@ export default function AssessmentPage() {
         social: String(channelScores.social),
       });
 
-      router.push(`/results?${query.toString()}`);
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch (e) {
+        console.warn("Failed to clear assessment state", e);
+      }
+
+      router.push(`/details?${query.toString()}`);
     }
   }
 

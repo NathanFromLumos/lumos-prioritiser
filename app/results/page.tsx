@@ -1,27 +1,30 @@
 import type { ChannelScores } from "../../lib/types";
 import { generatePriorities } from "../../lib/priorities";
 
-type SearchParams = { [key: string]: string | string[] | undefined };
+type RawSearchParams = { [key: string]: string | string[] | undefined };
 
-function getScore(searchParams: SearchParams, key: string): number {
-  const value = searchParams[key];
+function getScore(params: RawSearchParams, key: string): number {
+  const value = params[key];
   if (Array.isArray(value)) {
     return Number(value[0] ?? 0);
   }
   return Number(value ?? 0);
 }
 
-export default function ResultsPage({
+export default async function ResultsPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<RawSearchParams>;
 }) {
-  const foundations = getScore(searchParams, "foundations");
-  const website = getScore(searchParams, "website");
-  const seo = getScore(searchParams, "seo");
-  const email = getScore(searchParams, "email");
-  const ppc = getScore(searchParams, "ppc");
-  const social = getScore(searchParams, "social");
+  // Unwrap the Promise that Next passes in
+  const params = await searchParams;
+
+  const foundations = getScore(params, "foundations");
+  const website = getScore(params, "website");
+  const seo = getScore(params, "seo");
+  const email = getScore(params, "email");
+  const ppc = getScore(params, "ppc");
+  const social = getScore(params, "social");
 
   const scores: ChannelScores = {
     foundations,
