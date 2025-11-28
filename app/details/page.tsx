@@ -1,199 +1,109 @@
-"use client";
+// app/details/page.tsx
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import type { ChannelScores } from "../../lib/types";
+import { generatePriorities } from "../../lib/priorities";
 
-type Scores = {
-  foundations: number;
-  website: number;
-  seo: number;
-  email: number;
-  ppc: number;
-  social: number;
-};
+type SearchParams = { [key: string]: string | string[] | undefined };
 
-function readScoresFromParams(params: URLSearchParams): Scores {
-  const get = (key: string) => Number(params.get(key) ?? 0);
-
-  return {
-    foundations: get("foundations"),
-    website: get("website"),
-    seo: get("seo"),
-    email: get("email"),
-    ppc: get("ppc"),
-    social: get("social"),
-  };
+function getScore(searchParams: SearchParams, key: keyof ChannelScores): number {
+  const value = searchParams[key];
+  if (Array.isArray(value)) {
+    return Number(value[0] ?? 0) || 0;
+  }
+  return Number(value ?? 0) || 0;
 }
 
-export default function DetailsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const scores = readScoresFromParams(searchParams);
+export default function DetailsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const scores: ChannelScores = {
+    foundations: getScore(searchParams, "foundations"),
+    website: getScore(searchParams, "website"),
+    seo: getScore(searchParams, "seo"),
+    email: getScore(searchParams, "email"),
+    ppc: getScore(searchParams, "ppc"),
+    social: getScore(searchParams, "social"),
+  };
 
-  const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!name || !email) {
-      setError("Please add at least your name and email.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const res = await fetch("/api/send-report", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          company,
-          email,
-          phone,
-          scores,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to send report");
-      }
-
-      // Rebuild the query for redirect to /results
-      const query = new URLSearchParams({
-        foundations: String(scores.foundations),
-        website: String(scores.website),
-        seo: String(scores.seo),
-        email: String(scores.email),
-        ppc: String(scores.ppc),
-        social: String(scores.social),
-      });
-
-      router.push(`/results?${query.toString()}`);
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong sending your report. Please try again.");
-      setSubmitting(false);
-    }
-  }
+  const priorities = generatePriorities(scores);
 
   return (
-    <div>
-      <h1 className="home-hero-title">One last step before your results.</h1>
-      <p className="home-hero-text">
-        Pop your details in below and we’ll email a copy of this mini-report to
-        the Lumos team so we can follow up if it’s helpful. You’ll see your
-        results on the next screen.
-      </p>
-
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}
-      >
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>
-            Name *
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: "1px solid rgba(147,157,156,0.5)",
-              backgroundColor: "#2B2F33",
-              color: "#F5F5F5",
-            }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>
-            Company
-          </label>
-          <input
-            type="text"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: "1px solid rgba(147,157,156,0.5)",
-              backgroundColor: "#2B2F33",
-              color: "#F5F5F5",
-            }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>
-            Email address *
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: "1px solid rgba(147,157,156,0.5)",
-              backgroundColor: "#2B2F33",
-              color: "#F5F5F5",
-            }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 4, fontSize: 14 }}>
-            Contact number
-          </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: 6,
-              border: "1px solid rgba(147,157,156,0.5)",
-              backgroundColor: "#2B2F33",
-              color: "#F5F5F5",
-            }}
-          />
-        </div>
-
-        {error && (
-          <p className="home-note" style={{ color: "#ffb3b3" }}>
-            {error}
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
+        <header className="space-y-2">
+          <p className="text-sm font-semibold tracking-wide text-amber-400">
+            Lumos prioritiser
           </p>
-        )}
+          <h1 className="text-3xl font-semibold">
+            Detailed breakdown of your results
+          </h1>
+          <p className="text-sm text-slate-300">
+            Use this page as a quick reference while you&apos;re talking through
+            the report with a client. The PDF is the polished artefact – this is
+            the working view.
+          </p>
+        </header>
 
-        <button
-          type="submit"
-          className="primary-button"
-          disabled={submitting}
-          style={{ opacity: submitting ? 0.7 : 1 }}
-        >
-          {submitting ? "Sending your report..." : "See my results"}
-        </button>
+        <section className="rounded-2xl bg-slate-900/60 p-5 border border-slate-800">
+          <h2 className="text-lg font-semibold mb-3">Channel scores</h2>
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">Foundations</dt>
+              <dd className="font-medium">{scores.foundations}%</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">Website</dt>
+              <dd className="font-medium">{scores.website}%</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">SEO</dt>
+              <dd className="font-medium">{scores.seo}%</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">Email</dt>
+              <dd className="font-medium">{scores.email}%</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">PPC</dt>
+              <dd className="font-medium">{scores.ppc}%</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-300">Social</dt>
+              <dd className="font-medium">{scores.social}%</dd>
+            </div>
+          </dl>
+        </section>
 
-        <p className="home-note">
-          We’ll never spam you. This just helps us understand who’s using the
-          tool and whether a follow-up chat might be useful.
-        </p>
-      </form>
-    </div>
+        <section className="rounded-2xl bg-slate-900/60 p-5 border border-slate-800">
+          <h2 className="text-lg font-semibold mb-3">Priority breakdown</h2>
+          <p className="mb-4 text-sm text-slate-300">
+            These are the same priorities you&apos;ll see in the PDF, just in a
+            more compact format.
+          </p>
+
+          <ol className="space-y-4">
+            {priorities.map((p, index) => (
+              <li
+                key={`${p.channel}-${index}`}
+                className="rounded-xl bg-slate-950/60 p-4 border border-slate-800"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                  #{index + 1} · {p.channel}
+                </p>
+                <h3 className="text-sm font-semibold mb-2">{p.title}</h3>
+                <p className="text-xs text-slate-300 mb-2">{p.why}</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-200">
+                  {p.actions.map((action, i) => (
+                    <li key={i}>{action}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+    </main>
   );
 }
